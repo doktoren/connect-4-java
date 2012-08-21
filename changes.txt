@@ -21,3 +21,6 @@ Opening library completed. Plays optimal, but does not necessarily win
 in the fewest number of moves. Can now also play with normal rules
 (cannot play optimal) or where the aim is to get a square (with optimal play).
 
+Version 1.3.1:
+
+Cannot remember what was changed since 1.3 and haven't bothered to find out.

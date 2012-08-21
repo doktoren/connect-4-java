@@ -1,5 +1,11 @@
-import java.io.Serializable;
-
+/**
+ * This class encapsulates the information used by the search algorithm in {@link ComputerPlayer} about each position.
+ * One exception however is that only 32 bits of the 49 bits defining a position is stored -
+ * the last 17 bits are implicitly given by the low 17 bits of its index in an array. 
+ * 
+ * @author Jesper Kristensen
+ * @see ComputerPlayer
+ */
 public class TransitionTableEntry {
 
 	// Evaluation types:
@@ -10,8 +16,11 @@ public class TransitionTableEntry {
 	
 	static final byte INFINITE_DEPTH = 64;
 	
+	/**
+	 * Constructs an empty <code>TransitionTableEntry</code>
+	 */
 	public TransitionTableEntry() {
-		hashValue = 0;
+		key = 0;
 		value = 0;
 		evaluationType = 0;
 		searchDepth = -1;
@@ -19,8 +28,11 @@ public class TransitionTableEntry {
 		forcedMove = false;
 	}
 	
+	/**
+	 * Clears the contents.
+	 */
 	public void clear() {
-		hashValue = 0;
+		key = 0;
 		value = 0;
 		evaluationType = 0;
 		searchDepth = -1;
@@ -28,8 +40,13 @@ public class TransitionTableEntry {
 		forcedMove = false;
 	}
 	
+	/**
+	 * Constructs a new entry identical to an existing one.
+	 *  
+	 * @param entry the entry to copy from.
+	 */
 	public TransitionTableEntry(TransitionTableEntry entry) {
-		this.hashValue = entry.hashValue;
+		this.key = entry.key;
 		this.value = entry.value;
 		this.evaluationType = entry.evaluationType;
 		this.searchDepth = entry.searchDepth;
@@ -39,7 +56,7 @@ public class TransitionTableEntry {
 	
 	/*
 	public TransitionTableEntry(short value, byte evaluationType, byte searchDepth) {
-		this.hashValue = 0;
+		this.key = 0;
 		this.value = value;
 		this.evaluationType = evaluationType;
 		this.searchDepth = searchDepth;
@@ -47,11 +64,13 @@ public class TransitionTableEntry {
 	}
 	*/
 	
-	public TransitionTableEntry(int hashValue, short value, byte evaluationType, byte searchDepth, byte bestMove, boolean forcedMove) {
-		if (-32700 < value  &&  value < 32700  &&  value != 0  &&  searchDepth >= 64)
-			System.out.println("" + 1/0);
-		
-		this.hashValue = hashValue;
+	/**
+	 * Constructs a new entry accordingly.
+	 */
+	public TransitionTableEntry(long key, short value, byte evaluationType, byte searchDepth, byte bestMove, boolean forcedMove) {
+		//if (-32700 < value  &&  value < 32700  &&  value != 0  &&  searchDepth >= 64)
+		//	System.out.println("" + 1/0);
+		this.key = key;
 		this.value = value;
 		this.evaluationType = evaluationType;
 		this.searchDepth = searchDepth;
@@ -59,8 +78,13 @@ public class TransitionTableEntry {
 		this.forcedMove = forcedMove;
 	}
 	
+	/**
+	 * Copies the contents of the applied entry to this entry.
+	 *  
+	 * @param entry the entry to copy from.
+	 */
 	public void set(TransitionTableEntry entry) {
-		this.hashValue = entry.hashValue;
+		this.key = entry.key;
 		this.value = entry.value;
 		this.evaluationType = entry.evaluationType;
 		this.searchDepth = entry.searchDepth;
@@ -68,38 +92,55 @@ public class TransitionTableEntry {
 		this.forcedMove = entry.forcedMove;
 	}
 	
+	/**
+	 * Returns whether this entry represents a position.
+	 * 
+	 * @return true if this entry represents a position.
+	 */
 	public boolean isDefined() { return evaluationType != 0; }
 	
+	/**
+	 * Examines whether the game theoretical value for this position has been found.
+	 * Notice that this includes the exact depth to the fastest win if possible.
+	 * 
+	 * @return true if the game theoretical value is known.
+	 */
 	public boolean isGameTheoreticalValue() {
 		return searchDepth >= INFINITE_DEPTH;
 	}
 	
+	/**
+	 * Tells the entry that its value is the correct game theoretical value.
+	 */
 	public void setGameTheoreticalValue() {
-		if (-32700 < value  &&  value < 32700)
-			System.out.println("" + 1/0);
+		// if (-32700 < value  &&  value < 32700  &&  value != 0) System.out.println("" + 1/0);
 		searchDepth = INFINITE_DEPTH;
 		evaluationType = EXACT;
 	}
 	
-	// Constructs a new TransitionTableEntry
+	/**
+	 * Constructs a new TransitionTableEntry...
+	 */
 	public TransitionTableEntry stepOneMoveBack() {
 		TransitionTableEntry newEntry = new TransitionTableEntry(this);
 		newEntry.value = (short)-newEntry.value;
 		++newEntry.searchDepth;
-		if (newEntry.searchDepth == 64)
-			System.out.println("" + 1/0);
+		//if (newEntry.searchDepth == 64)	System.out.println("" + 1/0);
 		// Swap between LOWER and UPPER evaluation types:
 		if ((newEntry.evaluationType & 2) != 0)
 			newEntry.evaluationType ^= 1;
 		return newEntry;
 	}
 	
+	/**
+	 * Returns a short textual representation of this entry.
+	 */
 	public String toString() {
-		return "TTE(hV " + hashValue + ", v " + (int)value + ", eT " + (int)evaluationType + ", sD " +
+		return "TTE(hV " + key + ", v " + (int)value + ", eT " + (int)evaluationType + ", sD " +
 				(int)searchDepth + ", bM " + (int)bestMove + ", fM " + forcedMove + ")";
 	}
 	
-	int hashValue;
+	long key;
 	short value;
 	byte evaluationType;
 	byte searchDepth;
