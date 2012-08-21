@@ -1,17 +1,21 @@
 
 public class Game {
 	
-	public Game() {
-		board = new byte[42];
+	// game = 0: Normal connect 4
+	// game = 1: Wrap & bounce
+	// game = 2: Square
+	public Game(int game) {
+		board = new byte[7][6];
 		moves = new int[42];
-		c = new ComputerPlayer();
+		c = new ComputerPlayer(game); 
 	}
 	
 	public void newGame() {
-		for (int i=0; i<42; i++)
-			board[i] = ' ';
-		starting_player_turn = true;
-		num_moves = 0;
+		for (int column=0; column<7; column++)
+			for (int row=0; row<6; row++)
+				board[column][row] = ' ';
+		startingPlayerTurn = true;
+		numMoves = 0;
 		
 		c.newGame();
 	}
@@ -19,29 +23,29 @@ public class Game {
 	public void print() {
 	    System.out.println();
 	    //c.print();
-	    for (int j=6; j>=1; j--){
-	    	System.out.print(j+" | ");
-	    	for (int i=1; i<8; i++)
-	    		System.out.print((char)board[7*(j-1) + (i-1)] + " ");
+	    for (int row=6; row>=1; row--){
+	    	System.out.print(row+" | ");
+	    	for (int column=1; column<8; column++)
+	    		System.out.print((char)board[column-1][row-1] + " ");
 	    	System.out.println("|");
 	    }
 	    System.out.println("  \\---------------/");
 	    System.out.println("    1 2 3 4 5 6 7");
-	    System.out.print("Moves: "); c.print_moves(); System.out.println();
+	    System.out.print("Moves: "); c.printMoves(); System.out.println();
 	}
 	
 	public boolean put(int column) {
-		if (board[7*5+column] != ' ') return false;
+		if (board[column][5] != ' ') return false;
 		if (c.isGameOver()) return false;
 		
 		c.put(column);
 		
-		moves[num_moves++] = column;
+		moves[numMoves++] = column;
 		
-		for (int i=0; ; i++)
-			if (board[7*i+column] == ' ') {
-				board[7*i+column] = (byte)(starting_player_turn ? 'X' : 'O');
-				starting_player_turn = !starting_player_turn;
+		for (int row=0; ; row++)
+			if (board[column][row] == ' ') {
+				board[column][row] = (byte)(startingPlayerTurn ? 'X' : 'O');
+				startingPlayerTurn = !startingPlayerTurn;
 				break;
 			}
 		
@@ -49,16 +53,16 @@ public class Game {
 	}
 	
 	public boolean undo() {
-		if (num_moves==0) return false;
+		if (numMoves==0) return false;
 		
 		c.undo();
 		
-		int column = moves[--num_moves];
+		int column = moves[--numMoves];
 		
-		for (int i=5; ; i--)
-			if (board[7*i+column] != ' ') {
-				board[7*i+column] = ' ';
-				starting_player_turn = !starting_player_turn;
+		for (int row=5; ; row--)
+			if (board[column][row] != ' ') {
+				board[column][row] = ' ';
+				startingPlayerTurn = !startingPlayerTurn;
 				break;
 			}
 		
@@ -67,25 +71,34 @@ public class Game {
 	
 	// calculateMove stops thinking when either thinkDepth is reached
 	// or maxPositions has been evaluated. The move is not executed.
-	public int calculateMove(long allowed_computing) {
+	public int calculateMove(long allowedComputing) {
 		if (c.isGameOver()) return 0;
-		return c.calculateMove(allowed_computing);
+		return c.calculateMove(allowedComputing);
 	}
 	
 	public boolean gameOver() {
 		return c.isGameOver();
 	}
 	
+	public void trainCPU() {
+		c.selfPlay();
+	}
+	
+	public void showLibraryInfo() {
+		c.showLibraryInfo();
+	}
+	
+	
 	// ' ' is an empty square
 	// 'X' is the starting player
 	// 'O' is the other player
 	// The squares are numbered left to right starting with the lowest line.
-	private byte[] board;
+	private byte[][] board;
 	
 	private int[] moves;
-	private int num_moves;
+	private int numMoves;
 	
-	private boolean starting_player_turn;
+	private boolean startingPlayerTurn;
 	
 	private ComputerPlayer c;
 }

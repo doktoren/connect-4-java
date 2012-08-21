@@ -14,3 +14,10 @@ Version 1.2:
 Two hash tables are used - one for short depth and one for high depth.
 The idea is that the entries in the high depth one should not be deleted.
 New hash table used for storing an opening library.
+
+Version 1.3:
+
+Opening library completed. Plays optimal, but does not necessarily win
+in the fewest number of moves. Can now also play with normal rules
+(cannot play optimal) or where the aim is to get a square (with optimal play).
+

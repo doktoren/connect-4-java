@@ -11,24 +11,31 @@ public class HashTable {
 	private static double MAX_FILL_RATE = 0.5;
 	private int filled, maxFilled;
 	
-	private TransitionTableEntry[] table;
-	private int predSize; // log(predSize+1) must always be at least 17
+	private TTE2[] table;
+	private int predSize;
 	
-	HashTable() {
-		int logSize = 17;
+	private String fileName;
+	
+	public HashTable(String fileName) {
+		this.fileName = fileName;
+		clear();
+	}
+	
+	public void clear() {
+		int logSize = 4;
 		filled = 0;
 		maxFilled = (int)(MAX_FILL_RATE * (1 << logSize));
-		table = new TransitionTableEntry[1 << logSize];
+		table = new TTE2[1 << logSize];
 		predSize = (1<<logSize)-1;
 	}
 	
-	public void insert(long hashValue, TransitionTableEntry entry) {
+	public void insert(TTE2 entry) {
 		if (++filled == maxFilled)
 			resize(2*predSize + 2);
 		
-		int index = predSize & (int)hashValue; 
+		int index = predSize & (int)(entry.getHashValue()); 
 		while (table[index] != null) {
-			if (table[index].hash_value == (int)(hashValue >>> 32)) {
+			if (table[index].matches(entry.getHashValue())) {
 				// Overwrite this entry
 				table[index] = entry;
 				return;
@@ -41,10 +48,10 @@ public class HashTable {
 	}
 	
 	// Returns null if lookup failed.
-	public TransitionTableEntry lookup(long hashValue) {
+	public TTE2 lookup(long hashValue) {
 		int index = predSize & (int)hashValue;
 		while (table[index] != null) {
-			if (table[index].hash_value == (int)(hashValue >>> 32)) {
+			if (table[index].matches(hashValue)) {
 				return table[index];
 			}
 			index = (index + 1) & predSize;
@@ -52,17 +59,18 @@ public class HashTable {
 		return null;
 	}
 	
-	public void save(String fileName) {
+	public void save() {
 		try
 		{
 			ObjectOutputStream file = 
 				new ObjectOutputStream(
-						new FileOutputStream("openingDatabase.dat"));
+						new FileOutputStream(fileName));
 			file.writeInt(predSize);
 			for (int i=0; i<=predSize; i++) {
 				file.writeBoolean(table[i] != null);
-				if (table[i] != null)
+				if (table[i] != null) {
 					file.writeObject(table[i]);
+				}
 			}
 			file.close();
 		}
@@ -72,21 +80,21 @@ public class HashTable {
 		}
 	}
 	
-	public boolean load(String fileName) {
+	public boolean load() {
 		try
 		{
 			ObjectInputStream file = 
 				new ObjectInputStream(
-						new FileInputStream("openingDatabase.dat"));
+						new FileInputStream(fileName));
 			predSize = file.readInt();
-			table = new TransitionTableEntry[predSize + 1];
+			table = new TTE2[predSize + 1];
 			filled = 0;
 			maxFilled = (int)(MAX_FILL_RATE * (predSize + 1));
 			
 			for (int i=0; i<=predSize; i++) {
 				if (file.readBoolean()) {
 					++filled;
-					table[i] = (TransitionTableEntry)file.readObject();
+					table[i] = (TTE2)file.readObject();
 				}
 			}
 			
@@ -95,6 +103,9 @@ public class HashTable {
 		}
 		catch (Exception ex)
 		{
+			System.err.println("Could not load file " + fileName);
+			System.err.println("Creating empty opening library.");
+			clear();
 			return false;
 		}
 	}
@@ -105,24 +116,18 @@ public class HashTable {
 			++newLogSize;
 		
 		// Remember old data
-		TransitionTableEntry[] oldTable = table;
+		TTE2[] oldTable = table;
 		int oldSize = predSize + 1;
 		
 		// Create new table
 		filled = 0;
 		maxFilled = (int)(MAX_FILL_RATE * (1 << newLogSize));
-		table = new TransitionTableEntry[1 << newLogSize];
+		table = new TTE2[1 << newLogSize];
 		predSize = (1<<newLogSize)-1;
 		
 		// Insert all entries into new table
-		// TODO: ARGH! tricket virker ikke med denne type hashtabel!!!
-		long p = predSize & ~0x1FFFF; 		
 		for (int i=0; i<oldSize; i++)
-			if (oldTable[i] != null) {
-				long hv = (((long)oldTable[i].hash_value) << 32) |
-					((i & 0x1FFFF) | (oldTable[i].hash_value & p)); 
-				insert(hv, oldTable[i]);
-				
-			}
+			if (oldTable[i] != null)
+				insert(oldTable[i]);
 	}
 }
