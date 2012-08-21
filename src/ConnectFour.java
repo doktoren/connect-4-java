@@ -2,7 +2,8 @@ import java.io.*;
 
 public class ConnectFour {
 
-	private static long MAX_EVALUATIONS = 20000000L; //200000L;
+	private static final long MAX_EVALUATIONS = 1000000L;
+	
 	
 	/**
 	 * @param args

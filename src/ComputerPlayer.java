@@ -1,13 +1,14 @@
 
 public class ComputerPlayer {
 	
-	static int infinite = 32760;
+	static final int infinite = 32760;
 	
-	static int log_size = 18;
+	// log_size >= 17 MUST be satisfied!
+	static final int log_size = 17;
 	// empty_hash_value = f[0] ^ f[1] ^ f[2] ^ f[3] ^ f[4] ^ f[5] ^ f[6];
 	static long empty_hash_value;
 	
-	private static long[] PATTERNS = {
+	private static final long[] PATTERNS = {
 		15L, 30L, 60L, 71L, 99L, 113L, 120L, 1920L,
 		3840L, 7680L, 9088L, 12672L, 14464L, 15360L, 17668L, 26656L,
 		33410L, 35336L, 37056L, 70672L, 73985L, 131714L, 141344L, 245760L,
@@ -56,7 +57,7 @@ public class ComputerPlayer {
 		2439541424128L, 3401614098432L, 3882650435584L, 4123168604160L};
 	
 	// LONG_POWERS contains all values of 2^i with i in [0...64[
-	private static long[] LONG_POWERS = {
+	private static final long[] LONG_POWERS = {
 		0x1L, 0x2L, 0x4L, 0x8L, 0x10L, 0x20L, 0x40L, 0x80L,
 		0x100L, 0x200L, 0x400L, 0x800L, 0x1000L, 0x2000L, 0x4000L, 0x8000L,
 		0x10000L, 0x20000L, 0x40000L, 0x80000L, 0x100000L, 0x200000L, 0x400000L, 0x800000L,
@@ -72,7 +73,7 @@ public class ComputerPlayer {
 		0x1000000000000000L, 0x2000000000000000L, 0x4000000000000000L, 0x8000000000000000L};
 	
 	// Used to maintain hash value of symmetric position
-	public static byte[] REFLECT =
+	public static final byte[] REFLECT =
 		{6, 5, 4, 3, 2, 1, 0,
 		13,12,11,10, 9, 8, 7,
 		20,19,18,17,16,15,14,
@@ -102,6 +103,8 @@ public class ComputerPlayer {
 		moves_played[0] = 99999; // Should NEVER get used.
 		cant_undo_before = num_moves_played = 0;
 		
+		for (int i=0; i<PATTERNS.length; i++)
+			completion_count[i] = 0;
 		eval_value = 0;
 	}
 	
@@ -122,8 +125,27 @@ public class ComputerPlayer {
 		long last_thinking_required = 1;
 		boolean continue_search = true;
 		
+		cut_depth = 2;
 		do {
 			++thinkDepth;
+			// Fixed cut_depth experiments. log_size = 20
+			// cut_depth  | search depth 13 | search depth 14 | search depth 15 | search depth 16 |
+			// -----------+-----------------+-----------------+-----------------+-----------------+
+			//       1    |                 |                 |                 |                 |
+			//       2    |       3504779   |     14651931    |                 |                 |
+			//       3    |       3530808   |     12421216    |      49660198   |                 |
+			//       4    |       3727459   |     12626514    |      35626434   |     120398323   |
+			//       5    |       3911385   |     13244968    |      35566640   |      71641498   |
+			//       6    |       5298651   |     13878304    |      38219926   |      79365261   |
+			//  Implemented incrementing cut_depth:
+			//            |  (3)  3533960   | (4) 12518056    | (5)  36922681   | (6)  74740710   |
+			//  Implemented incrementing cut_depth (log_size only 17):
+			//            |  (5)  4222860   | (6) 13151248    | (7)  63921658   |                 |
+			//  Implemented incrementing cut_depth (log_size only 17), check before overwrite:
+			//            |  (5)  4574241   | (6) 13784163    | (7)  70206359   |                 |
+			//  Implemented incrementing cut_depth (log_size only 17), check before overwrite (weaker):
+			//            |  (5)  4613851   | (6) 13913321    | (7)  68826774   |                 |
+			if (computing_performed >= (1 << log_size)) ++cut_depth;
 			
 			// TODO: fortsæt her
 			int alpha = -infinite + (num_moves_played + thinkDepth);
@@ -138,10 +160,12 @@ public class ComputerPlayer {
 					put(i);
 					int value = gameOver() ? (infinite-num_moves_played) : -recurse(thinkDepth - 1, -beta, -alpha);
 					undo();
+					/*
 					System.out.print("Move " + (i+1) + " has value ");
 					if (value <= alpha) System.out.print("<= ");
 					if (value >= beta) System.out.print(">= ");
 					System.out.println("" + value);
+					*/
 					
 					if (value > -infinite+42) {
 						// Will not lose by playing this move
@@ -163,7 +187,7 @@ public class ComputerPlayer {
 					}
 				}
 			}
-			System.out.println("computing_performed = " + computing_performed + ":");
+			System.out.println("computing_performed = " + computing_performed + ", cut_depth = " + cut_depth);
 			
 			if (max <= -infinite + (num_moves_played + thinkDepth)) {
 				System.out.println("The game is lost! Give up searching any further.");
@@ -193,79 +217,90 @@ public class ComputerPlayer {
 	// Returns value relative to player
 	private int recurse(int depth, int alpha, int beta) {
 		if (num_moves_played == 42) return 0;
-		if (depth == 0) return evaluate();
+		if (depth <= 0) return evaluate();
 		
-
 		if (true) { // Lookup transition table
-			int index = (int)(hash_value >> 32);
-			if (tt[index].hash_value == (int)hash_value) {
+
+			TransitionTableEntry entry = tt[depth <= cut_depth ? 0 : 1][(int)hash_value];
+
+			//if ((int)(hash_value >> 32) > 1<<17) System.out.println("alæfdaf");
+			
+			if (entry.hash_value == (int)(hash_value >>> 32)) {
 				// Either tt[index] is not initialized (and then it has search depth -1)
 				// or otherwise it is the same position.
-				if (tt[index].search_depth == depth) {
-					
+				if (entry.search_depth >= depth  &&
+						entry.search_depth == depth  ||  entry.evaluation_type == 4  ||
+						((entry.search_depth ^ depth) & 1) == 0) {
 					// if (!tt[index].cmp(board)) System.out.println("Hash value error :-(");
-					
-					switch (tt[index].evaluation_type) {
+										
+					switch (entry.evaluation_type) {
 					case 1: // EXACT
-						return tt[index].value;
+						return entry.value;
 					case 2: // LOWER
-						if (tt[index].value < alpha)
-							return tt[index].value;
+						if (entry.value < alpha)
+							return entry.value;
 						break;
 					case 3: // UPPER
-						if (tt[index].value >= beta)
-							return tt[index].value;
+						if (entry.value >= beta)
+							return entry.value;
 						break;
+					case 4: // Game theoretical
+						return entry.value;
 					}
 				}
 			}
 		}
 		
+		int last_depth_best_move = -1;
+		// Internal iterative deepening for best move
+		if (true) {
+			
+			TransitionTableEntry entry = tt[depth-1 <= cut_depth ? 0 : 1][(int)hash_value];
+			
+			if (entry.hash_value == (int)(hash_value >>> 32)) {
+				// Either tt[index] is not initialized (and then it has search depth -1)
+				// or otherwise it is the same position.
+				if (entry.search_depth == depth-1  ||  entry.evaluation_type == 4) {
+					/*
+					if (entry.best_move == -1  ||
+							(entry.evaluation_type == 2  &&  entry.value < beta)) {
+						recurse(depth-2, alpha, beta);
+						entry = tt[depth-1 <= cut_depth ? 0 : 1][(int)(hash_value >> 32)];
+					}
+					*/
+					// last_depth_best_move might still be undefined (-1)
+					last_depth_best_move = entry.best_move;
+				}
+				
+			} else {
+				
+				//recurse(depth-2, alpha, beta);
+				//last_depth_best_move = tt[depth-1 <= cut_depth ? 0 : 1][(int)(hash_value >> 32)].best_move;
+			}
+		}
+		
 		
 		int max = -infinite;
-		for (int i=0; i<7; i++) {
+		int best_move = -1;
+		
+		int[] perm = {0,1,2,3,4,5,6};
+		if (last_depth_best_move != -1) {
+			perm[0] = last_depth_best_move;
+			perm[last_depth_best_move] = 0;
+		}
+		for (int ii=0; ii<7; ii++) {
+			int i = perm[ii];
 			if (insert_pos[i] < 42) {
 				
-				int value = 0;
-				boolean used_tt = false;
-				if (false) { // probe transition table
-
-					long hv_after_move = hash_value ^ f[insert_pos[i] + 7];
-					if (last_player == 1) hv_after_move ^= f[insert_pos[i]];
-						
-					int index = (int)(hv_after_move >> 32);
-					if (tt[index].hash_value == (int)hv_after_move) {
-						// Either tt[index] is not initialized (and then it has search depth -1)
-						// or otherwise it is the same position.
-						if (tt[index].search_depth == depth) {
-							value = tt[index].value;
-							
-							switch (tt[index].evaluation_type) {
-							case 1: // EXACT
-								used_tt = true;
-								break;
-							case 2: // LOWER, ie. upper (looking one move ahead).
-								used_tt |= value < alpha;
-								break;
-							case 3: // UPPER, ie. lower (looking one move ahead).
-								used_tt |= value >= beta;
-								break;
-							}
-						}
-					}
-				}
-				
-				if (!used_tt) {
-					put(i);
-					value = gameOver() ? (infinite-num_moves_played) : -recurse(depth - 1, -beta, -alpha);
-					//System.out.print("recurse("+depth+"): ");
-					//print_moves();
-					//System.out.println(". Value "+value);
-					undo();
-				}
+				int value;
+				put(i);
+				value = gameOver() ? (infinite-num_moves_played) : -recurse(depth - 1, -beta, -alpha);
+				//System.out.print("recurse("+depth+"): ");print_moves();System.out.println(". Value "+value);
+				undo();
 				
 				if (value > max) {
 					max = value;
+					best_move = i;
 					
 					if (value > alpha) {
 						alpha = value;
@@ -282,18 +317,34 @@ public class ComputerPlayer {
 		if (true) { // Update transition table
 			// Don't care whats already in the transition table entry!
 
-			int index = (int)(hash_value >> 32);
-			tt[index].hash_value = (int)hash_value;
+			boolean game_theoretical_value =
+				(max <= -(infinite-(num_moves_played+depth)))  ||
+				(max >= infinite-(num_moves_played+depth));  
 			
-			tt[index].value = (short)max;
-			tt[index].search_depth = (byte)depth;
+			TransitionTableEntry entry = tt[0][(int)hash_value];
+
+			entry.hash_value = (int)(hash_value >>> 32);
 			
-			if (max <= alpha) tt[index].evaluation_type = 3; // UPPER BOUND
-			else if (max < beta) tt[index].evaluation_type = 1; // EXACT
-			else tt[index].evaluation_type = 2; // LOWER BOUND
+			entry.value = (short)max;
+			entry.search_depth = (byte)depth;
+
+			if (game_theoretical_value) entry.evaluation_type = 4;
+			else if (max <= alpha) entry.evaluation_type = 3; // UPPER BOUND
+			else if (max < beta) entry.evaluation_type = 1; // EXACT
+			else entry.evaluation_type = 2; // LOWER BOUND
 			
-			tt[index].board0 = board[0];
-			tt[index].board1 = board[1];
+			// TODO: game theoretical value, save
+
+			entry.best_move = (byte)best_move;
+
+			//tt[index].board0 = board[0];
+			//tt[index].board1 = board[1];
+
+			if (depth > cut_depth) {
+				TransitionTableEntry entry2 = tt[1][(int)hash_value];
+				//if (entry.search_depth >= entry2.search_depth-2)
+					entry2.set(entry);
+			}
 		}
 		
 		// max may be smaller than alpha - usefull in connection with a transition table.
@@ -479,9 +530,12 @@ public class ComputerPlayer {
 		// The high 32 bit part of f will be used to index the transition table.
 		// Copy (log_size-17) from the lower 32 bits to the higher 32 bits, such
 		// that the entire range of the transition table is exploitet.
-		long p = ((0x20000 << (log_size - 17)) - 0x20000) << 32;
+		long p = ((1L << (log_size-17)) - 1L) << (32+17);
 		for (int i=0; i<49; i++) {
 			f[i] |= (f[i] << 32) & p;
+			
+			// swap low and high 32 bits
+			f[i] = (f[i] << 32) | (f[i] >>> 32);
 		}
 		
 		empty_hash_value = f[0] ^ f[1] ^ f[2] ^ f[3] ^ f[4] ^ f[5] ^ f[6];
@@ -510,9 +564,12 @@ public class ComputerPlayer {
 	}
 	
 	private void init_tt() {
-		tt = new TransitionTableEntry[1 << log_size];
-		for (int i=0; i<1<<log_size; i++)
-			tt[i] = new TransitionTableEntry();
+		System.out.println("log_size = " + log_size);
+		tt = new TransitionTableEntry[2][1 << log_size];
+		for (int i=0; i<1<<log_size; i++) {
+			tt[0][i] = new TransitionTableEntry();
+			tt[1][i] = new TransitionTableEntry();
+		}
 	}
 	
 	
@@ -586,6 +643,8 @@ public class ComputerPlayer {
 	
 	private long computing_performed;
 	
-	
-	private TransitionTableEntry[] tt;
+	// low_depth_transition_table, high_depth_transition_table
+	private TransitionTableEntry[][] tt;
+	// if (depth <= cut_depth) store in tt[0] else store in tt[1]
+	private int cut_depth;
 }

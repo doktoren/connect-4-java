@@ -7,3 +7,10 @@ Version 1.1:
 
 Transposition table added (misspelled as transition table).
 Two hash values are kept updated, such that a mirrored position is also recognized.
+
+Version 1.2:
+
+"Best move" added to transposition table. Internal iterative deepening.
+Two hash tables are used - one for short depth and one for high depth.
+The idea is that the entries in the high depth one should not be deleted.
+New hash table used for storing an opening library.
