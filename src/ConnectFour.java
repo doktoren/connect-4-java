@@ -2,6 +2,8 @@ import java.io.*;
 
 public class ConnectFour {
 
+	private static long MAX_EVALUATIONS = 20000000L; //200000L;
+	
 	/**
 	 * @param args
 	 */
@@ -20,46 +22,61 @@ public class ConnectFour {
 		g.print();
 		System.out.println("Press q/Q to quit, c/C for a computer move,");
 		System.out.println("u/U to undo a move, n/N for new game or 1-7 to put in a column.");
+		
 		while (true) {
 			char c = GetChar(keyboard);
-			if (c=='q' || c=='Q') return;
-			if (c=='n' || c=='N') {
-				g.newGame();
-				g.print();
-			} else if (c=='u' || c=='U') {
-				if (!g.undo()) {
-					System.out.println("Undo what?! Stupid fuck face!");
-				}
-				g.print();
-			} else if (c=='c' || c=='C') {
-				if (!g.put(g.calculateMove(200000L))) {
-					System.out.println("Computer couldn't play or played a filled column...");
-				}
-				g.print();
-			} else if ('1'<=c  &&  c<='7') {
-				if (!g.put(c-'1')) {
+			c = Character.toLowerCase(c);
+			switch (c) {
+			// Moves:
+			case '1':
+			case '2':
+			case '3':
+			case '4':
+			case '5':
+			case '6':
+			case '7':
+				if (!g.put(c - '1')) {
 					System.out.println("The column is filled your stupid ass!");
 				} else {
 					g.print();
 				}
-			} else {
+				break;
+				
+				// Compute a move:
+			case 'c':
+				if (!g.put(g.calculateMove(MAX_EVALUATIONS))) {
+					System.out.println("Computer couldn't play or played a filled column...");
+				}
+				g.print();
+				break;
+				
+				// New game:
+			case 'n':
+				g.newGame();
+				g.print();
+				break;
+				
+				// Quit:
+			case 'q':
+				return;
+				
+				// Undo move:
+			case 'u':
+				if (!g.undo()) {
+					System.out.println("Undo what?! Stupid fuck face!");
+				}
+				g.print();
+				break;
+				
+			default:
 				System.out.println("Unrecognized input - what an idiot!");
+				break;
 			}
+			
 			if (g.gameOver()) {
 				System.out.println("Game over!");
 			}
 		}
-		
-		
-		/*
-		int x = 42;
-		int y = 24;
-		System.out.println("x = " + x + ", y = " + y);
-		x ^= y;
-		y ^= x;
-		x ^= y;
-		System.out.println("x = " + x + ", y = " + y);
-		*/
 	}
 
 	private static String GetString(BufferedReader keyboard){

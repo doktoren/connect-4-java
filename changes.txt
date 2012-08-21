@@ -1,0 +1,9 @@
+Version 1.0:
+
+Alpha beta search
+Evaluation function - counts number of possible connect 4 for each player.
+
+Version 1.1:
+
+Transposition table added (misspelled as transition table).
+Two hash values are kept updated, such that a mirrored position is also recognized.
