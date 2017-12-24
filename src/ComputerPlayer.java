@@ -414,7 +414,7 @@ public class ComputerPlayer implements ConnectFourListener, ConnectFourPlayer, C
 			//            |  (5)  4613851   | (6) 13913321    | (7)  68826774   |                 |
 			if (computingPerformed >= (1 << logSize)) ++cutDepth;
 			
-			// TODO: fortsæt her
+			// TODO: Continue here
 			int alpha = -INFINITE_VALUE + (numMovesPlayed + thinkDepth);
 			int beta = INFINITE_VALUE - (numMovesPlayed + thinkDepth);
 			
